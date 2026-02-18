@@ -4,18 +4,22 @@ const mongoose = require('mongoose');
 const cors = require('cors');
 
 const app = express();
+
 app.use(express.json());
 
+// ✅ CORS CORRETO (LOCAL + VERCEL)
 app.use(cors({
   origin: [
     'http://localhost:5173',
-    'https://reserva-frontend.vercel.app'
+    'https://reserva-frontend-topaz.vercel.app'
   ],
-  credentials: true
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
-/* MongoDB – compatível com Vercel */
+// ✅ MongoDB (evita múltiplas ligações)
 let cached = global.mongoose;
+
 if (!cached) {
   cached = global.mongoose = { conn: null, promise: null };
 }
@@ -24,36 +28,29 @@ async function connectDB() {
   if (cached.conn) return cached.conn;
 
   if (!cached.promise) {
-    cached.promise = mongoose.connect(process.env.MONGO_URI)
-      .then(m => m);
+    cached.promise = mongoose.connect(process.env.MONGO_URI).then(m => m);
   }
 
   cached.conn = await cached.promise;
   return cached.conn;
 }
 
+// ✅ Middleware para garantir DB ligada
 app.use(async (req, res, next) => {
-  try {
-    await connectDB();
-    next();
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Erro na base de dados' });
-  }
+  await connectDB();
+  next();
 });
 
-/* ROTAS */
-app.use('/api/auth', require(process.cwd() + '/routes/auth'));
-app.use('/api/business', require(process.cwd() + '/routes/business'));
-app.use('/api/services', require(process.cwd() + '/routes/services'));
-app.use('/api/reservations', require(process.cwd() + '/routes/reservations'));
+// ROTAS
+app.use('/api/auth', require('../routes/auth'));
+app.use('/api/business', require('../routes/business'));
+app.use('/api/services', require('../routes/services'));
+app.use('/api/reservations', require('../routes/reservations'));
 
-/* LOCAL */
-if (process.env.NODE_ENV !== 'production') {
-  const PORT = process.env.PORT || 5000;
-  app.listen(PORT, () =>
-    console.log(`🚀 Backend local a correr na porta ${PORT}`)
-  );
-}
+// ROTA ROOT (evita Cannot GET /)
+app.get('/', (req, res) => {
+  res.json({ status: 'Backend API running' });
+});
 
+// ❗ NÃO USAR app.listen NA VERCEL
 module.exports = app;
