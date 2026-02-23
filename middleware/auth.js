@@ -1,107 +1,28 @@
-const express = require('express');
-const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const User = require(process.cwd() + '/models/User');
-const Business = require(process.cwd() + '/models/Business');
+const User = require('../models/User');
 
-const router = express.Router();
-
-/* REGISTO */
-router.post('/register', async (req, res) => {
+module.exports = async function auth(req, res, next) {
   try {
-    const {
-      name,
-      surname,
-      email,
-      password,
-      role,
-      phone,
-      companyName,
-      companyLocation
-    } = req.body;
+    const header = req.headers.authorization;
 
-    const existingUser = await User.findOne({ email });
-    if (existingUser) {
-      return res.status(400).json({ error: 'Email já registado' });
+    if (!header || !header.startsWith('Bearer ')) {
+      return res.status(401).json({ error: 'Token em falta' });
     }
 
-    if (role === 'owner' && (!companyName || !companyLocation)) {
-      return res.status(400).json({
-        error: 'Nome e localização da empresa são obrigatórios para owners'
-      });
-    }
+    const token = header.split(' ')[1];
 
-    const hash = await bcrypt.hash(password, 10);
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-    const user = await User.create({
-      name,
-      surname,
-      email,
-      password: hash,
-      role,
-      phone
-    });
+    const user = await User.findById(decoded.id);
 
-    let business = null;
-
-    if (role === 'owner') {
-      business = await Business.create({
-        name: companyName,
-        owner: user._id,
-        location: companyLocation,
-        email: user.email,
-        locations: [],
-        petTypes: [],
-        notes: ''
-      });
-
-      user.businessId = business._id;
-      await user.save();
-    }
-
-    res.json({ user, business });
-  } catch (err) {
-    console.error(err);
-    res.status(400).json({ error: 'Erro ao registar utilizador' });
-  }
-});
-
-/* LOGIN */
-router.post('/login', async (req, res) => {
-  try {
-    const { email, password } = req.body;
-
-    const user = await User.findOne({ email });
     if (!user) {
-      return res.status(400).json({ error: 'Credenciais inválidas' });
+      return res.status(401).json({ error: 'Utilizador não encontrado' });
     }
 
-    const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) {
-      return res.status(400).json({ error: 'Credenciais inválidas' });
-    }
-
-    const token = jwt.sign(
-      { id: user._id },
-      process.env.JWT_SECRET,
-      { expiresIn: '7d' }
-    );
-
-    res.json({
-      token,
-      user: {
-        id: user._id,
-        name: user.name,
-        surname: user.surname,
-        email: user.email,
-        role: user.role,
-        businessId: user.businessId || null
-      }
-    });
+    req.user = user; // 🔴 ESSENCIAL
+    next();
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: 'Erro no login' });
+    res.status(401).json({ error: 'Token inválido' });
   }
-});
-
-module.exports = router;
+};

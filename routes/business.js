@@ -1,14 +1,26 @@
 const express = require('express');
+
 const Business = require('../models/Business');
 const auth = require('../middleware/auth');
 
 const router = express.Router();
 
-// Criar empresa
+/* ======================================================
+   CRIAR EMPRESA
+====================================================== */
 router.post('/', auth, async (req, res) => {
-  if (req.user.role !== 'owner') return res.status(403).json({ error: 'Apenas owners' });
+  if (req.user.role !== 'owner') {
+    return res.status(403).json({ error: 'Apenas owners' });
+  }
 
-  const { name, location, phone, locations, petTypes, notes } = req.body;
+  const {
+    name,
+    location,
+    phone,
+    locations,
+    petTypes,
+    notes
+  } = req.body;
 
   const business = await Business.create({
     name,
@@ -27,10 +39,18 @@ router.post('/', auth, async (req, res) => {
   res.json(business);
 });
 
-// Listar empresas
+/* ======================================================
+   LISTAR EMPRESAS
+====================================================== */
 router.get('/', async (req, res) => {
-  const businesses = await Business.find().populate('services');
+  const businesses = await Business
+    .find()
+    .populate('services');
+
   res.json(businesses);
 });
 
+/* ======================================================
+   EXPORT
+====================================================== */
 module.exports = router;

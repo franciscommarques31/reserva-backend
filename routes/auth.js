@@ -1,15 +1,15 @@
-// routes/auth.js
 const express = require('express');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+
 const User = require('../models/User');
 const Business = require('../models/Business');
 
 const router = express.Router();
 
-/* =========================
+/* ======================================================
    REGISTO
-========================= */
+====================================================== */
 router.post('/register', async (req, res) => {
   try {
     const {
@@ -63,15 +63,16 @@ router.post('/register', async (req, res) => {
     }
 
     res.json({ user, business });
+
   } catch (err) {
     console.error(err);
     res.status(400).json({ error: 'Erro ao registar utilizador' });
   }
 });
 
-/* =========================
+/* ======================================================
    LOGIN
-========================= */
+====================================================== */
 router.post('/login', async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -110,4 +111,7 @@ router.post('/login', async (req, res) => {
   }
 });
 
+/* ======================================================
+   EXPORT
+====================================================== */
 module.exports = router;
